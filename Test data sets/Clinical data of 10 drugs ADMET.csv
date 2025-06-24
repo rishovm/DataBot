@@ -1,0 +1,11 @@
+Drug Name,Absorption (%),Caco-2 Permeability (cm/s),P-gp Substrate (Yes/No),"Distribution (Vd, L/kg)",BBB Penetration (Yes/No),Metabolism (CYP450 Inhibitor),Clearance (mL/min/kg),Toxicity (LD50 mg/kg),Half-life (hours)
+DrugA,85,1.50E-05,No,0.8,Yes,CYP3A4,10,250,5
+DrugB,60,8.00E-06,Yes,1.2,No,CYP2D6,15,400,7
+DrugC,92,2.00E-05,No,0.5,Yes,None,8,300,4
+DrugD,45,5.00E-06,Yes,2,No,CYP1A2,20,150,3
+DrugE,78,1.20E-05,No,1,Yes,CYP2C9,12,350,6
+DrugF,50,7.00E-06,Yes,1.5,No,CYP2C19,18,280,8
+DrugG,88,1.80E-05,No,0.7,Yes,CYP3A4,9,220,5
+DrugH,40,4.00E-06,Yes,2.5,No,CYP2D6,25,180,2
+DrugI,95,2.20E-05,No,0.4,Yes,None,7,400,6
+DrugJ,55,9.00E-06,Yes,1.3,No,CYP1A2,14,260,4
