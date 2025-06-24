@@ -1,1 +1,1 @@
-pip install pandas numpy matplotlib seaborn scikit-learn scipy
+pip install pandas matplotlib seaborn numpy openpyxl plotly
