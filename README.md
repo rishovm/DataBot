@@ -15,7 +15,7 @@ Performs comparisons of rows across all columns (from column B onward).
 
 Generates visualizations (e.g., bar plots) with labels and legends.
 
-Creates PNG files for each visualization.
+Creates PNG and SVG files for each visualization.
 
 Writes a text interpretation file for each analysis.
 
