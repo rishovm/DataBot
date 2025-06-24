@@ -4,21 +4,20 @@ import seaborn as sns
 import os
 import numpy as np
 import re
-
+import plotly.express as px
 print ("Welcome to the world of data modelling and simulation")
 print ("Please enter the path of your data file to be analysed")
-
 # Auto-create output folder
 def create_outputs_folder():
     output_dir = os.path.join(os.getcwd(), 'outputs')
-    os.makedirs(output_dir, exist_ok=True)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
     return output_dir
 
-# Make filename safe
 def sanitize_filename(name):
     return re.sub(r'[\\/*?"<>|\s]', "_", name)
 
-# Load data file
+# Load file
 def load_file(file_path):
     try:
         if file_path.endswith('.csv'):
@@ -32,7 +31,7 @@ def load_file(file_path):
         print(f"Error loading file: {e}")
         return None
 
-# Analysis techniques list
+# Data analysis techniques
 analysis_techniques = [
     "Mean Calculation",
     "Median Calculation",
@@ -46,7 +45,7 @@ analysis_techniques = [
     "Distribution Analysis"
 ]
 
-# Visualization options list
+# Data visualization options
 visualization_options = [
     "Bar Plot",
     "Line Plot",
@@ -57,111 +56,139 @@ visualization_options = [
     "Heatmap",
     "Pie Chart",
     "Area Plot",
-    "Swarm Plot"
+    "Swarm Plot",
+    "Sales Territory Mapping"
 ]
 
-# Function to perform selected data analysis
-def perform_analysis(values, technique):
-    if technique == "Mean Calculation":
-        return f"Mean: {values.mean():.2f}"
-    elif technique == "Median Calculation":
-        return f"Median: {values.median():.2f}"
-    elif technique == "Standard Deviation":
-        return f"Standard Deviation: {values.std():.2f}"
-    elif technique == "Min/Max Values":
-        return f"Min: {values.min():.2f}, Max: {values.max():.2f}"
-    elif technique == "Correlation Matrix":
-        return "See heatmap visualization."
-    elif technique == "Outlier Detection":
-        outliers = values[(np.abs(values - values.mean()) > 2 * values.std())]
-        return f"Outliers: {outliers.tolist()}"
-    elif technique == "Normalization":
-        norm = (values - values.min()) / (values.max() - values.min())
-        return f"Normalized values: {norm.tolist()}"
-    elif technique == "Z-score Calculation":
-        z_scores = (values - values.mean()) / values.std()
-        return f"Z-scores: {z_scores.tolist()}"
-    elif technique == "Missing Value Analysis":
-        return f"Missing values: {values.isna().sum()}"
-    elif technique == "Distribution Analysis":
-        return f"Skew: {values.skew():.2f}, Kurtosis: {values.kurtosis():.2f}"
-    else:
-        return "No analysis performed."
+def perform_analysis(df, analysis_choices, output_dir):
+    numeric_df = df.select_dtypes(include=np.number)
+    summary = {}
 
-# Visualize selected type
-def visualize_data(row_labels, values, column_name, vis_type, output_dir):
-    safe_col = sanitize_filename(column_name)
-    plt.figure(figsize=(10, 6))
+    if "Mean Calculation" in analysis_choices:
+        summary["Mean"] = numeric_df.mean()
+    if "Median Calculation" in analysis_choices:
+        summary["Median"] = numeric_df.median()
+    if "Standard Deviation" in analysis_choices:
+        summary["Std"] = numeric_df.std()
+    if "Min/Max Values" in analysis_choices:
+        summary["Min"] = numeric_df.min()
+        summary["Max"] = numeric_df.max()
+    if "Correlation Matrix" in analysis_choices:
+        summary["Correlation"] = numeric_df.corr()
+    if "Outlier Detection" in analysis_choices:
+        summary["Outliers"] = ((numeric_df - numeric_df.mean()).abs() > 2 * numeric_df.std())
+    if "Normalization" in analysis_choices:
+        summary["Normalized"] = (numeric_df - numeric_df.min()) / (numeric_df.max() - numeric_df.min())
+    if "Z-score Calculation" in analysis_choices:
+        summary["Z-score"] = (numeric_df - numeric_df.mean()) / numeric_df.std()
+    if "Missing Value Analysis" in analysis_choices:
+        summary["Missing Values"] = df.isnull().sum()
+    if "Distribution Analysis" in analysis_choices:
+        summary["Distribution"] = numeric_df.apply(lambda x: x.value_counts().head())
 
-    if vis_type == "Bar Plot":
-        sns.barplot(x=row_labels, y=values)
-    elif vis_type == "Line Plot":
-        sns.lineplot(x=row_labels, y=values)
-    elif vis_type == "Box Plot":
-        sns.boxplot(data=values)
-    elif vis_type == "Violin Plot":
-        sns.violinplot(data=values)
-    elif vis_type == "Histogram":
-        sns.histplot(values, kde=True)
-    elif vis_type == "Scatter Plot":
-        sns.scatterplot(x=row_labels, y=values)
-    elif vis_type == "Heatmap":
-        sns.heatmap(pd.DataFrame(values).T, annot=True, cmap='coolwarm')
-    elif vis_type == "Pie Chart":
-        plt.pie(values, labels=row_labels, autopct='%1.1f%%')
-    elif vis_type == "Area Plot":
-        plt.fill_between(range(len(values)), values)
-        plt.xticks(ticks=range(len(row_labels)), labels=row_labels, rotation=45)
-    elif vis_type == "Swarm Plot":
-        sns.swarmplot(y=values)
-    else:
-        print("Invalid visualization selected.")
-        return
+    for key, val in summary.items():
+        val.to_csv(os.path.join(output_dir, f"{sanitize_filename(key)}.csv"))
 
-    plt.title(f"{vis_type} - {column_name}")
-    plt.ylabel(column_name)
-    plt.xlabel("Drugs" if vis_type not in ["Box Plot", "Violin Plot", "Histogram", "Swarm Plot"] else "")
-    plt.tight_layout()
-    file_path = os.path.join(output_dir, f"{vis_type}_{safe_col}.png")
-    plt.savefig(file_path)
-    plt.close()
-
-# Analyze and visualize
-def analyze_and_visualize(df, analysis_choice, vis_choice, output_dir):
+def visualize(df, visual_choices, output_dir):
     row_labels = df.iloc[:, 0].astype(str)
     data = df.iloc[:, 1:]
 
     for col in data.columns:
         try:
-            values = pd.to_numeric(data[col], errors='coerce')
+            values = data[col].astype(float)
 
-            # Data analysis
-            analysis_result = perform_analysis(values, analysis_choice)
+            for vis in visual_choices:
+                plt.figure(figsize=(10, 6))
 
-            # Visualization
-            visualize_data(row_labels, values, col, vis_choice, output_dir)
+                if vis == "Bar Plot":
+                    bars = plt.bar(row_labels, values, color='skyblue')
+                    plt.title(f"Bar Plot: {col}")
+                    plt.xlabel("Label")
+                    plt.ylabel(col)
+                    for bar in bars:
+                        yval = bar.get_height()
+                        plt.text(bar.get_x() + bar.get_width()/2.0, yval + 0.05, f'{yval:.2f}', ha='center', va='bottom', fontsize=8)
 
-            # Interpretation
-            max_idx = values.idxmax()
-            min_idx = values.idxmin()
-            if pd.notna(max_idx) and pd.notna(min_idx):
-                max_drug = row_labels.iloc[max_idx]
-                min_drug = row_labels.iloc[min_idx]
-                interp = (
-                    f"Interpretation for {col}:\n"
-                    f"{max_drug} has the highest value ({values[max_idx]:.2f}), "
-                    f"{min_drug} has the lowest value ({values[min_idx]:.2f}).\n"
-                    f"{analysis_result}"
-                )
-            else:
-                interp = f"Interpretation for {col}:\n{analysis_result}"
+                elif vis == "Line Plot":
+                    plt.plot(row_labels, values, marker='o')
+                    plt.title(f"Line Plot: {col}")
+                    plt.xlabel("Label")
+                    plt.ylabel(col)
 
-            # Save interpretation
-            with open(os.path.join(output_dir, f"interpretation_{sanitize_filename(col)}.txt"), 'w') as f:
-                f.write(interp)
+                elif vis == "Box Plot":
+                    sns.boxplot(y=values)
+                    plt.title(f"Box Plot: {col}")
+
+                elif vis == "Violin Plot":
+                    sns.violinplot(y=values)
+                    plt.title(f"Violin Plot: {col}")
+
+                elif vis == "Histogram":
+                    plt.hist(values, bins=10, color='orange', edgecolor='black')
+                    plt.title(f"Histogram: {col}")
+                    plt.xlabel(col)
+                    plt.ylabel("Frequency")
+
+                elif vis == "Scatter Plot":
+                    plt.scatter(range(len(values)), values)
+                    plt.title(f"Scatter Plot: {col}")
+                    plt.xlabel("Index")
+                    plt.ylabel(col)
+
+                elif vis == "Heatmap":
+                    sns.heatmap(data.corr(), annot=True, cmap="coolwarm")
+                    plt.title("Heatmap of Correlation")
+                    break  # Only once for entire dataset
+
+                elif vis == "Pie Chart":
+                    plt.pie(values, labels=row_labels, autopct='%1.1f%%')
+                    plt.title(f"Pie Chart: {col}")
+
+                elif vis == "Area Plot":
+                    plt.fill_between(range(len(values)), values)
+                    plt.title(f"Area Plot: {col}")
+                    plt.xlabel("Index")
+                    plt.ylabel(col)
+
+                elif vis == "Swarm Plot":
+                    sns.swarmplot(y=values)
+                    plt.title(f"Swarm Plot: {col}")
+
+                elif vis == "Sales Territory Mapping":
+                    if "Region" in df.columns and col != "Region":
+                        region_df = df[["Region", col]].dropna()
+                        region_df.columns = ["Region", "Value"]
+                        fig = px.choropleth(region_df,
+                                            locations="Region",
+                                            locationmode="country names",
+                                            color="Value",
+                                            color_continuous_scale="Blues",
+                                            title=f"Sales Territory Mapping: {col}",
+                                            labels={'Value': col})
+                        fig.update_layout(geo=dict(showframe=False, showcoastlines=False),
+                                          legend_title_text="Sales")
+                        html_path = os.path.join(output_dir, f"territory_map_{sanitize_filename(col)}.html")
+                        fig.write_html(html_path)
+
+                        # Static PNG
+                        fig.write_image(os.path.join(output_dir, f"territory_map_{sanitize_filename(col)}.png"))
+
+                        with open(os.path.join(output_dir, f"interpretation_territory_{sanitize_filename(col)}.txt"), 'w') as f:
+                            f.write(f"This map shows regional distribution of {col}. Darker regions indicate higher values.")
+
+                        continue
+
+                plt.tight_layout()
+                fig_path = os.path.join(output_dir, f"{vis.lower().replace(' ', '_')}_{sanitize_filename(col)}.png")
+                plt.savefig(fig_path)
+
+                # Save in SVG format for Illustrator
+                svg_path = os.path.join(output_dir, f"{vis.lower().replace(' ', '_')}_{sanitize_filename(col)}.svg")
+                plt.savefig(svg_path, format='svg')
+                plt.close()
 
         except Exception as e:
-            print(f"Skipping column '{col}' due to error: {e}")
+            print(f"Skipping visualization for {col} due to error: {e}")
 
 # Main
 if __name__ == "__main__":
@@ -170,23 +197,27 @@ if __name__ == "__main__":
 
     if df is not None:
         output_dir = create_outputs_folder()
-        print("\nAvailable Data Analysis Techniques:")
-        for i, technique in enumerate(analysis_techniques, 1):
-            print(f"{i}. {technique}")
+        print("\n✅ File loaded successfully!")
 
-        analysis_index = int(input("Choose a data analysis technique by number: ")) - 1
-        analysis_choice = analysis_techniques[analysis_index]
+        print("\n📊 Available Data Analysis Techniques:")
+        for i, tech in enumerate(analysis_techniques, 1):
+            print(f"{i}. {tech}")
+        chosen_analyses = input("Enter comma-separated numbers of analysis techniques you'd like to run: ").split(",")
+        chosen_analysis_names = [analysis_techniques[int(i)-1] for i in chosen_analyses if i.strip().isdigit()]
 
-        print("\nAvailable Visualization Techniques:")
-        for i, viz in enumerate(visualization_options, 1):
-            print(f"{i}. {viz}")
+        print("\n📈 Available Data Visualization Options:")
+        for i, vis in enumerate(visualization_options, 1):
+            print(f"{i}. {vis}")
+        chosen_visuals = input("Enter comma-separated numbers of visualizations you'd like to create: ").split(",")
+        chosen_visual_names = [visualization_options[int(i)-1] for i in chosen_visuals if i.strip().isdigit()]
 
-        vis_index = int(input("Choose a visualization type by number: ")) - 1
-        vis_choice = visualization_options[vis_index]
+        print("\n🧮 Running selected data analyses...")
+        perform_analysis(df, chosen_analysis_names, output_dir)
 
-        print(f"\nRunning {analysis_choice} with {vis_choice}...")
+        print("📊 Creating selected visualizations...")
+        visualize(df, chosen_visual_names, output_dir)
 
-        analyze_and_visualize(df, analysis_choice, vis_choice, output_dir)
         print(f"\n✅ All outputs saved in: {output_dir}")
+
     else:
-        print("❌ Failed to load the data file. Please check the path and format.")
+        print("❌ Failed to load the data file. Please check the format and try again.")
